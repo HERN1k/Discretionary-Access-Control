@@ -12,7 +12,7 @@ The basis is the model of discretionary management
 
 `Object-oriented model of isolated software environment`
 
-## What modules are in the program?
+## 🧩 What modules are in the program?
 
   1. A module for `registration` and `authorization` of subjects
 
