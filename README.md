@@ -8,7 +8,27 @@
 
 ## ℹ️ About
 
-This project was created for laboratory work on the topic `Implementation of a discretionary access control mechanism` (Object-oriented model of an isolated-software core)
+This project was created for laboratory work on the topic 
+
+`Implementation of a discretionary access control mechanism`
+
+The basis is the model of discretionary management 
+
+`Object-oriented model of isolated software environment`
+
+What modules are in the program?
+
+  1. A module for `registration` and `authorization` of subjects
+
+  2. A unique `object identification` module
+
+  3. Methods that allow `subjects` to perform `object` operations
+
+  4. An `administrator` module has been created in which subjects, objects and rights are managed
+
+  5. A module to check the access right that wants to get a subject to an object in `real time`
+
+  6. A `event audit` module that logging: events, failed accesses and successful operations
 
 ## 🛠 Getting Started and Installation
 
