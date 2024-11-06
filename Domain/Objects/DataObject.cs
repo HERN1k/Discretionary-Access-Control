@@ -71,7 +71,7 @@ namespace DiscretionaryAccessControl.Domain.Objects
 
             if (!_createPermissions.Contains(Program.User.Permission))
             {
-                throw new ApplicationException($"Denied access");
+                throw new ApplicationException("Denied access");
             }
 
             return new DataObject(name, permission, data);

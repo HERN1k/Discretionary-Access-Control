@@ -16,7 +16,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             _dataService = new DataService();
         }
 
-        public static void Init()
+        public static void Init(ref int code)
         {
             while (true)
             {
@@ -31,6 +31,7 @@ namespace DiscretionaryAccessControl.Domain.Services
 
                 if (ReadCommand() == 0)
                 {
+                    code = 0;
                     return;
                 }
 
@@ -44,16 +45,17 @@ namespace DiscretionaryAccessControl.Domain.Services
             string command = AnsiConsole.Ask<string>($"[green]{name}:[/]");
 
             string[] lines = command
-                .ToLower()
                 .Trim()
                 .Split(' ');
 
             if (lines.Length == 0)
             {
-                throw new ApplicationException("Critical error!");
+                ApplicationException ex = new("Critical error!");
+                _dataService.WriteExceptionLog(ex);
+                throw ex;
             }
 
-            switch (lines[0])
+            switch (lines[0].ToLower())
             {
                 case "help":
                     Help();
@@ -81,6 +83,15 @@ namespace DiscretionaryAccessControl.Domain.Services
                     return 1;
                 case "users":
                     UsersList();
+                    return 1;
+                case "log":
+                    EventLog();
+                    return 1;
+                case "authlog":
+                    AuthLog();
+                    return 1;
+                case "exlog":
+                    ExceptionLog();
                     return 1;
                 case "exit":
                     return Exit();
@@ -173,6 +184,9 @@ namespace DiscretionaryAccessControl.Domain.Services
                 "[green]read {name}[/]\t-   Read object data",
                 "[green]edit {name}[/]\t-   Edit object data",
                 "[green]adduser[/]\t\t-   Add new user",
+                "[green]log[/]\t\t-   Events Log",
+                "[green]authlog[/]\t\t-   Authorizations Log",
+                "[green]exlog[/]\t\t-   Exceptions Log",
                 "[green]exit[/]\t\t-   Exit the application"
             };
 
@@ -197,6 +211,8 @@ namespace DiscretionaryAccessControl.Domain.Services
 
         private static void Exception(Exception ex)
         {
+            _dataService.WriteExceptionLog(ex);
+
             AnsiConsole.Clear();
 
             AnsiConsole.Write(new FigletText("Discretionary")
@@ -506,6 +522,197 @@ namespace DiscretionaryAccessControl.Domain.Services
                         new Markup($"[silver]{lines[2]}[/]").Centered());
 
                     textHeight += 2;
+                }
+
+                AnsiConsole.Clear();
+                Title(textHeight);
+                AnsiConsole.Write(table);
+                AnsiConsole.WriteLine();
+                ReadCommand();
+            }
+            catch (Exception ex)
+            {
+                Exception(ex);
+            }
+        }
+
+        private static void AuthLog()
+        {
+            try
+            {
+                if (Program.User == null)
+                {
+                    throw new UnauthorizedAccessException();
+                }
+
+                if (Program.User.Permission != Enums.SubjectType.Root)
+                {
+                    throw new ApplicationException("Denied access");
+                }
+
+                Table table = new Table()
+                    .Centered()
+                    .Title("Authorizations Log")
+                    .AddColumn(new TableColumn(new Markup($"[white]№[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]Event[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]User Id[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]User Login[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]User Permission[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]Date[/]").Centered()));
+
+                table.Border = TableBorder.Rounded;
+                table.BorderColor(Color.Yellow);
+
+                int index = 0;
+                int textHeight = 18;
+
+                lock (_dataService.LockObject)
+                {
+                    foreach (string log in Program.AuthorizationsLog)
+                    {
+                        string[] lines = log.Split('\t');
+
+                        if (lines.Length != 5)
+                        {
+                            throw new ApplicationException("Critical error!");
+                        }
+
+                        table.AddRow(
+                            new Markup($"[silver]{++index}[/]").Centered(),
+                            new Markup($"[silver]{lines[0]}[/]").Centered(),
+                            new Markup($"[silver]{lines[1]}[/]").Centered(),
+                            new Markup($"[silver]{lines[2]}[/]").Centered(),
+                            new Markup($"[silver]{lines[3]}[/]").Centered(),
+                            new Markup($"[silver]{lines[4]}[/]").Centered());
+
+                        textHeight += 2;
+                    }
+                }
+
+                AnsiConsole.Clear();
+                Title(textHeight);
+                AnsiConsole.Write(table);
+                AnsiConsole.WriteLine();
+                ReadCommand();
+            }
+            catch (Exception ex)
+            {
+                Exception(ex);
+            }
+        }
+
+        private static void EventLog()
+        {
+            try
+            {
+                if (Program.User == null)
+                {
+                    throw new UnauthorizedAccessException();
+                }
+
+                if (Program.User.Permission != Enums.SubjectType.Root)
+                {
+                    throw new ApplicationException("Denied access");
+                }
+
+                Table table = new Table()
+                    .Centered()
+                    .Title("Events Log")
+                    .AddColumn(new TableColumn(new Markup($"[white]№[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]Event[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]Id[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]Data[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]Date[/]").Centered()));
+
+                table.Border = TableBorder.Rounded;
+                table.BorderColor(Color.Yellow);
+
+                int index = 0;
+                int textHeight = 18;
+
+                lock (_dataService.LockObject)
+                {
+                    foreach (string ev in Program.EventsLog)
+                    {
+                        string[] lines = ev.Split('\t');
+
+                        if (lines.Length != 4)
+                        {
+                            throw new ApplicationException("Critical error!");
+                        }
+
+                        table.AddRow(
+                            new Markup($"[silver]{++index}[/]").Centered(),
+                            new Markup($"[silver]{lines[0]}[/]").Centered(),
+                            new Markup($"[silver]{lines[1]}[/]").Centered(),
+                            new Markup($"[silver]{lines[2]}[/]").Centered(),
+                            new Markup($"[silver]{lines[3]}[/]").Centered());
+
+                        textHeight += 2;
+                    }
+                }
+
+                AnsiConsole.Clear();
+                Title(textHeight);
+                AnsiConsole.Write(table);
+                AnsiConsole.WriteLine();
+                ReadCommand();
+            }
+            catch (Exception ex)
+            {
+                Exception(ex);
+            }
+        }
+
+        private static void ExceptionLog()
+        {
+            try
+            {
+                if (Program.User == null)
+                {
+                    throw new UnauthorizedAccessException();
+                }
+
+                if (Program.User.Permission != Enums.SubjectType.Root)
+                {
+                    throw new ApplicationException("Denied access");
+                }
+
+                Table table = new Table()
+                    .Centered()
+                    .Title("Exceptions Log")
+                    .AddColumn(new TableColumn(new Markup($"[white]№[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]Message[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]User Id[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]User Permission[/]").Centered()))
+                    .AddColumn(new TableColumn(new Markup($"[white]Date[/]").Centered()));
+
+                table.Border = TableBorder.Rounded;
+                table.BorderColor(Color.Yellow);
+
+                int index = 0;
+                int textHeight = 18;
+
+                lock (_dataService.LockObject)
+                {
+                    foreach (string ex in Program.ExceptionsLog)
+                    {
+                        string[] lines = ex.Split('\t');
+
+                        if (lines.Length != 4)
+                        {
+                            throw new ApplicationException("Critical error!");
+                        }
+
+                        table.AddRow(
+                            new Markup($"[silver]{++index}[/]").Centered(),
+                            new Markup($"[silver]{lines[0]}[/]").Centered(),
+                            new Markup($"[silver]{lines[1]}[/]").Centered(),
+                            new Markup($"[silver]{lines[2]}[/]").Centered(),
+                            new Markup($"[silver]{lines[3]}[/]").Centered());
+
+                        textHeight += 2;
+                    }
                 }
 
                 AnsiConsole.Clear();

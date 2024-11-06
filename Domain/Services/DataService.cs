@@ -1,4 +1,6 @@
-﻿using DiscretionaryAccessControl.Domain.Enums;
+﻿using System.Globalization;
+
+using DiscretionaryAccessControl.Domain.Enums;
 using DiscretionaryAccessControl.Domain.Interfaces;
 using DiscretionaryAccessControl.Domain.Objects;
 
@@ -6,6 +8,12 @@ namespace DiscretionaryAccessControl.Domain.Services
 {
     public class DataService : IDataService
     {
+        public object LockObject { get; init; } = new();
+
+        private readonly string _separator = "\t";
+
+        private readonly CultureInfo _culture = CultureInfo.GetCultureInfoByIetfLanguageTag("en-US");
+
         public void LogIn(string login, string password)
         {
             if (Program.Users.IsEmpty)
@@ -23,12 +31,14 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
 
             Program.User = user;
+            WriteAuthorizationLog();
         }
 
         public void LogOut()
         {
             if (Program.User != null)
             {
+                WriteAuthorizationLog(Program.User);
                 Program.User = null;
             }
         }
@@ -73,6 +83,7 @@ namespace DiscretionaryAccessControl.Domain.Services
                 ?? throw new ApplicationException("Critical error!");
 
             Program.Objects.Add((DataObject)obj);
+            WriteEventLog($"Obj id: {obj.Id}", $"User: {Program.User.Login}, Obj name: {obj.Name}", AppEvent.Object_Added);
         }
 
         public string ReadObject(string name)
@@ -91,7 +102,10 @@ namespace DiscretionaryAccessControl.Domain.Services
                 .Where(obj => obj.Name == name.Trim())
                 .FirstOrDefault() ?? throw new ArgumentException($"The object with name of '{name}' was not found");
 
-            return obj.Read();
+            string data = obj.Read();
+            WriteEventLog($"Obj id: {obj.Id}", $"User: {Program.User.Login}, Obj name: {obj.Name}", AppEvent.Object_Read);
+
+            return data;
         }
 
         public void EditObject(string name, string data)
@@ -111,6 +125,7 @@ namespace DiscretionaryAccessControl.Domain.Services
                 .FirstOrDefault() ?? throw new ArgumentException($"The object with name of '{name}' was not found");
 
             obj.Edit(data);
+            WriteEventLog($"Obj id: {obj.Id}", $"User: {Program.User.Login}, Obj name: {obj.Name}", AppEvent.Object_Edit);
         }
 
         public void AddUser(string login, string password, string permission)
@@ -138,6 +153,8 @@ namespace DiscretionaryAccessControl.Domain.Services
             {
                 throw new ApplicationException("Critical error!");
             }
+
+            WriteEventLog($"User id: {Program.User.Id}", $"User: {Program.User.Login}, New user: {user.Login}", AppEvent.User_Added);
         }
 
         public List<string> UsersList()
@@ -155,6 +172,106 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
 
             return users;
+        }
+
+        public void WriteExceptionLog(Exception ex)
+        {
+            if (Program.User == null || ex == null)
+            {
+                return;
+            }
+
+            string log = string.Concat(new string[7]
+            {
+                ex.Message,
+                _separator,
+                Program.User.Id.ToString(),
+                _separator,
+                Program.User.Permission.ToString(),
+                _separator,
+                DateTime.Now.ToString("d MMMM yyyy H:m:s", _culture)
+            });
+
+            lock (LockObject)
+            {
+                Program.ExceptionsLog.Add(log);
+            }
+        }
+
+        private void WriteAuthorizationLog()
+        {
+            if (Program.User == null)
+            {
+                return;
+            }
+
+            string log = string.Concat(new string[9]
+            {
+                "Authorization",
+                _separator,
+                Program.User.Id.ToString(),
+                _separator,
+                Program.User.Login.ToString(),
+                _separator,
+                Program.User.Permission.ToString(),
+                _separator,
+                DateTime.Now.ToString("d MMMM yyyy H:m:s", _culture)
+            });
+
+            lock (LockObject)
+            {
+                Program.AuthorizationsLog.Add(log);
+            }
+        }
+
+        private void WriteAuthorizationLog(ISubject user)
+        {
+            if (user == null)
+            {
+                return;
+            }
+
+            string log = string.Concat(new string[9]
+            {
+                "Deauthorization",
+                _separator,
+                user.Id.ToString(),
+                _separator,
+                user.Login.ToString(),
+                _separator,
+                user.Permission.ToString(),
+                _separator,
+                DateTime.Now.ToString("d MMMM yyyy H:m:s", _culture)
+            });
+
+            lock (LockObject)
+            {
+                Program.AuthorizationsLog.Add(log);
+            }
+        }
+
+        private void WriteEventLog(string id, string data, AppEvent appEvent)
+        {
+            if (Program.User == null)
+            {
+                return;
+            }
+
+            string log = string.Concat(new string[7]
+            {
+                appEvent.ToString().Replace('_', ' '),
+                _separator,
+                id,
+                _separator,
+                data,
+                _separator,
+                DateTime.Now.ToString("d MMMM yyyy H:m:s", _culture)
+            });
+
+            lock (LockObject)
+            {
+                Program.EventsLog.Add(log);
+            }
         }
     }
 }

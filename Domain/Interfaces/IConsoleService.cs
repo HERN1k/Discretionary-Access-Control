@@ -2,6 +2,6 @@
 {
     public interface IConsoleService
     {
-        abstract static void Init();
+        abstract static void Init(ref int code);
     }
 }
