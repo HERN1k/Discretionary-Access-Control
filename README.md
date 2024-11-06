@@ -1,12 +1,4 @@
 <h2 align="center">🎓 Discretionary Access Control</h2>
-<div align="center">
-  <img alt="Home" src="/Src/home.png" />
-  <img alt="Log" src="/Src/log.png" />
-  <img alt="Help" src="/Src/help.png" />
-</div>
-<p></p>
-
-## ℹ️ About
 
 This project was created for laboratory work on the topic 
 
@@ -15,6 +7,11 @@ This project was created for laboratory work on the topic
 The basis is the model of discretionary management 
 
 `Object-oriented model of isolated software environment`
+
+<div align="center">
+  <img alt="Home" src="/Src/home.png" />
+</div>
+<p></p>
 
 What modules are in the program?
 
@@ -29,6 +26,11 @@ What modules are in the program?
   5. A module to check the access right that wants to get a subject to an object in `real time`
 
   6. A `event audit` module that logging: events, failed accesses and successful operations
+
+<div align="center">
+  <img alt="Log" src="/Src/log.png" />
+  <img alt="Help" src="/Src/help.png" />
+</div>
 
 ## 🛠 Getting Started and Installation
 
