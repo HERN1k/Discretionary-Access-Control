@@ -12,6 +12,10 @@ The basis is the model of discretionary management
 
 `Object-oriented model of isolated software environment`
 
+The program operates as a `console application`
+
+Providing a convenient `command line interface (CLI)` for performing basic operations
+
 ## 🧩 What modules are in the program?
 
   1. A module for `registration` and `authorization` of subjects
