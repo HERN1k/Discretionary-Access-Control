@@ -21,6 +21,10 @@ namespace DiscretionaryAccessControl
 
         public static readonly List<string> ExceptionsLog = new();
 
+        public static SubjectType[] CreatePermissions = { SubjectType.Root, SubjectType.User };
+
+        private static readonly IConsoleService _console = new ConsoleService();
+
         static Program()
         {
             Subject root = (Subject)Subject.Create("root", "root", SubjectType.Root);
@@ -38,21 +42,18 @@ namespace DiscretionaryAccessControl
                 {
                     Objects.Add((DataObject)DataObject.Create(
                         name: Guid.NewGuid().ToString().ToUpper()[24..],
-                        permission: ObjectPermission.RootOnly,
                         data: "Some data!"));
                 }
                 else if (i >= 10 && i < 20)
                 {
                     Objects.Add((DataObject)DataObject.Create(
                         name: Guid.NewGuid().ToString().ToUpper()[24..],
-                        permission: ObjectPermission.Read,
                         data: "Some data!"));
                 }
                 else
                 {
                     Objects.Add((DataObject)DataObject.Create(
                         name: Guid.NewGuid().ToString().ToUpper()[24..],
-                        permission: ObjectPermission.Write,
                         data: "Some data!"));
                 }
             }
@@ -66,7 +67,7 @@ namespace DiscretionaryAccessControl
             {
                 try
                 {
-                    ConsoleService.Init(ref code);
+                    _console.Init(ref code);
                 }
                 catch (Exception ex)
                 {

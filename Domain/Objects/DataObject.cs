@@ -1,5 +1,4 @@
-﻿using DiscretionaryAccessControl.Domain.Enums;
-using DiscretionaryAccessControl.Domain.Interfaces;
+﻿using DiscretionaryAccessControl.Domain.Interfaces;
 
 #pragma warning disable CS8618
 
@@ -46,106 +45,31 @@ namespace DiscretionaryAccessControl.Domain.Objects
             }
         }
 
-        private ObjectPermission _permission;
-
-        public ObjectPermission Permission { get; private set; }
-
         private string _data;
 
-        private static SubjectType[] _createPermissions = { SubjectType.Root, SubjectType.User };
+        public string Data
+        {
+            get => _data;
+            set => _data = value ?? string.Empty;
+        }
 
-        private DataObject(string name, ObjectPermission permission, string? data = null)
+        private readonly string _separator = "\t";
+
+        private DataObject(string name, string? data = null)
         {
             _id = Guid.NewGuid();
-            _permission = permission;
             _data = data ?? string.Empty;
             Name = name.Trim();
         }
 
-        public static IObject Create(string name, ObjectPermission permission, string? data = null)
+        public static IObject Create(string name, string? data = null)
         {
             if (Program.User == null)
             {
                 throw new UnauthorizedAccessException();
             }
 
-            if (!_createPermissions.Contains(Program.User.Permission))
-            {
-                throw new ApplicationException("Denied access");
-            }
-
-            return new DataObject(name, permission, data);
-        }
-
-        public void Edit(string input)
-        {
-            if (Program.User == null)
-            {
-                throw new UnauthorizedAccessException();
-            }
-
-            if (_permission == ObjectPermission.RootOnly)
-            {
-                if (Program.User.Permission != SubjectType.Root)
-                {
-                    throw new ApplicationException($"Denied access");
-                }
-
-                _data = input ?? string.Empty;
-            }
-            else if (_permission == ObjectPermission.Read)
-            {
-                if (Program.User.Permission == SubjectType.Root)
-                {
-                    _data = input ?? string.Empty;
-                    return;
-                }
-
-                throw new ApplicationException($"Denied access");
-            }
-            else if (_permission == ObjectPermission.Write)
-            {
-                if (!_createPermissions.Contains(Program.User.Permission))
-                {
-                    throw new ApplicationException($"Denied access");
-                }
-
-                _data = input ?? string.Empty;
-            }
-            else
-            {
-                throw new ApplicationException("Critical error!");
-            }
-        }
-
-        public string Read()
-        {
-            if (Program.User == null)
-            {
-                throw new UnauthorizedAccessException();
-            }
-
-            if (Program.User.Permission == SubjectType.None)
-            {
-                throw new ApplicationException($"Denied access");
-            }
-
-            return _data ?? string.Empty;
-        }
-
-        public object Clone()
-        {
-            if (Program.User == null)
-            {
-                throw new UnauthorizedAccessException();
-            }
-
-            if (!_createPermissions.Contains(Program.User.Permission))
-            {
-                throw new ApplicationException($"Denied access");
-            }
-
-            return new DataObject(Name, Permission, _data);
+            return new DataObject(name, data);
         }
 
         public static bool operator ==(DataObject? left, DataObject? right)
@@ -166,7 +90,7 @@ namespace DiscretionaryAccessControl.Domain.Objects
             if (other == null)
                 return false;
 
-            return Id == other.Id && Name == other.Name && Permission == other.Permission;
+            return Id == other.Id && Name == other.Name;
         }
 
         public override bool Equals(object? obj)
@@ -181,12 +105,12 @@ namespace DiscretionaryAccessControl.Domain.Objects
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Id, Name, Permission);
+            return HashCode.Combine(Id, Name);
         }
 
         public override string ToString()
         {
-            return $"{Name}\t{Id}\t{_data.Length}";
+            return $"{Name}{_separator}{Id}{_separator}{_data.Length}";
         }
     }
 }

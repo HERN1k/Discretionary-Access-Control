@@ -30,6 +30,11 @@ namespace DiscretionaryAccessControl.Domain.Services
                 throw new ArgumentException("Incorrect login or password");
             }
 
+            if (Program.User != null)
+            {
+                WriteAuthorizationLog(Program.User);
+            }
+
             Program.User = user;
             WriteAuthorizationLog();
         }
@@ -60,30 +65,19 @@ namespace DiscretionaryAccessControl.Domain.Services
             return objects;
         }
 
-        public void AddObject(string name, string permission, string data)
+        public void AddObject(string name, string data)
         {
             if (Program.User == null)
             {
                 throw new UnauthorizedAccessException();
             }
 
-            if (Program.Objects.Any(obj => obj.Name == name))
-            {
-                throw new ArgumentException("An object with this name already exists");
-            }
+            DataObject obj = Program.User.AddObject(name, data);
 
-            if (!Enum.TryParse(typeof(ObjectPermission), permission, true, out var permissionObj))
-            {
-                throw new ApplicationException("Critical error!");
-            }
-
-            ObjectPermission objectPermission = (ObjectPermission)permissionObj;
-
-            IObject obj = DataObject.Create(name, objectPermission, data)
-                ?? throw new ApplicationException("Critical error!");
-
-            Program.Objects.Add((DataObject)obj);
-            WriteEventLog($"Obj id: {obj.Id}", $"User: {Program.User.Login}, Obj name: {obj.Name}", AppEvent.Object_Added);
+            WriteEventLog(
+                $"Obj id: {obj.Id}",
+                $"User: {Program.User.Login}, Obj name: {obj.Name}",
+                AppEvent.Object_Added);
         }
 
         public string ReadObject(string name)
@@ -93,19 +87,14 @@ namespace DiscretionaryAccessControl.Domain.Services
                 throw new UnauthorizedAccessException();
             }
 
-            if (string.IsNullOrEmpty(name))
-            {
-                throw new ArgumentException("Object name is empty");
-            }
+            DataObject obj = Program.User.GetObject(name);
 
-            DataObject obj = Program.Objects
-                .Where(obj => obj.Name == name.Trim())
-                .FirstOrDefault() ?? throw new ArgumentException($"The object with name of '{name}' was not found");
+            WriteEventLog(
+                $"Obj id: {obj.Id}",
+                $"User: {Program.User?.Login ?? "null"}, Obj name: {obj.Name}",
+                AppEvent.Object_Read);
 
-            string data = obj.Read();
-            WriteEventLog($"Obj id: {obj.Id}", $"User: {Program.User.Login}, Obj name: {obj.Name}", AppEvent.Object_Read);
-
-            return data;
+            return obj.Data;
         }
 
         public void EditObject(string name, string data)
@@ -115,17 +104,12 @@ namespace DiscretionaryAccessControl.Domain.Services
                 throw new UnauthorizedAccessException();
             }
 
-            if (string.IsNullOrEmpty(name))
-            {
-                throw new ArgumentException("Object name is empty");
-            }
+            DataObject obj = Program.User.EditObject(name, data);
 
-            DataObject obj = Program.Objects
-                .Where(obj => obj.Name == name.Trim())
-                .FirstOrDefault() ?? throw new ArgumentException($"The object with name of '{name}' was not found");
-
-            obj.Edit(data);
-            WriteEventLog($"Obj id: {obj.Id}", $"User: {Program.User.Login}, Obj name: {obj.Name}", AppEvent.Object_Edit);
+            WriteEventLog(
+                $"Obj id: {obj.Id}",
+                $"User: {Program.User.Login}, Obj name: {obj.Name}",
+                AppEvent.Object_Edit);
         }
 
         public void AddUser(string login, string password, string permission)
@@ -155,6 +139,106 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
 
             WriteEventLog($"User id: {Program.User.Id}", $"User: {Program.User.Login}, New user: {user.Login}", AppEvent.User_Added);
+        }
+
+        public void AddPermission(string login, string name, string permission)
+        {
+            if (Program.User == null)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Object name or user login is empty");
+            }
+
+            if (!Program.CreatePermissions.Any(permission => permission == Program.User.Permission))
+            {
+                throw new ApplicationException($"Denied access");
+            }
+
+            ISubject user = Program.Users
+                .Where(user => user.Key.Login == login)
+                .FirstOrDefault().Key ?? throw new ArgumentException($"The user with login of '{name}' was not found");
+
+            IObject obj = Program.Objects
+                .Where(obj => obj.Name == name)
+                .FirstOrDefault() ?? throw new ArgumentException($"The object with name of '{name}' was not found");
+
+            if (user.Permission == SubjectType.Root && Program.User.Permission != SubjectType.Root)
+            {
+                throw new ApplicationException($"Denied access");
+            }
+
+            if (permission == "Read")
+            {
+                if (Program.User.Permission == SubjectType.Root)
+                {
+                    user.ReadObject.Add(obj.Id);
+                }
+                else if (Program.User.Permission == SubjectType.User)
+                {
+                    if (user.Permission != SubjectType.Observer)
+                    {
+                        throw new ApplicationException($"Denied access");
+                    }
+
+                    user.ReadObject.Add(obj.Id);
+                }
+                else
+                {
+                    throw new ApplicationException($"Denied access");
+                }
+            }
+            else if (permission == "Write")
+            {
+                if (Program.User.Permission == SubjectType.Root)
+                {
+                    user.WriteObject.Add(obj.Id);
+                }
+                else if (Program.User.Permission == SubjectType.User)
+                {
+                    if (user.Permission != SubjectType.Observer)
+                    {
+                        throw new ApplicationException($"Denied access");
+                    }
+                }
+                else
+                {
+                    throw new ApplicationException($"Denied access");
+                }
+            }
+            else if (permission == "Read and Write")
+            {
+                if (Program.User.Permission == SubjectType.Root)
+                {
+                    user.ReadObject.Add(obj.Id);
+                    user.WriteObject.Add(obj.Id);
+                }
+                else if (Program.User.Permission == SubjectType.User)
+                {
+                    if (user.Permission != SubjectType.Observer)
+                    {
+                        throw new ApplicationException($"Denied access");
+                    }
+
+                    user.ReadObject.Add(obj.Id);
+                }
+                else
+                {
+                    throw new ApplicationException($"Denied access");
+                }
+            }
+            else
+            {
+                throw new ApplicationException($"Denied access");
+            }
+
+            WriteEventLog(
+                $"User ID: {Program.User.Id}",
+                $"User {Program.User.Login} added permission '{permission}' for object '{obj.Name}' for user {user.Login}",
+                AppEvent.Added_Permission);
         }
 
         public List<string> UsersList()

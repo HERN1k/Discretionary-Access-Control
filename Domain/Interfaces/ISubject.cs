@@ -1,17 +1,30 @@
-﻿using DiscretionaryAccessControl.Domain.Enums;
+﻿using System.Collections.Concurrent;
+
+using DiscretionaryAccessControl.Domain.Enums;
+using DiscretionaryAccessControl.Domain.Objects;
 
 namespace DiscretionaryAccessControl.Domain.Interfaces
 {
     public interface ISubject
     {
-        public Guid Id { get; }
+        Guid Id { get; }
 
-        public string Login { get; }
+        string Login { get; }
 
-        public string Password { get; }
+        string Password { get; }
 
-        public SubjectType Permission { get; }
+        SubjectType Permission { get; }
 
-        public abstract static ISubject Create(string login, string password, SubjectType permission);
+        ConcurrentBag<Guid> ReadObject { get; }
+
+        ConcurrentBag<Guid> WriteObject { get; }
+
+        abstract static ISubject Create(string login, string password, SubjectType permission);
+
+        DataObject AddObject(string name, string data);
+
+        DataObject GetObject(string name);
+
+        DataObject EditObject(string name, string data);
     }
 }

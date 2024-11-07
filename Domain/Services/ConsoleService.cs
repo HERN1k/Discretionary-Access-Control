@@ -16,7 +16,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             _dataService = new DataService();
         }
 
-        public static void Init(ref int code)
+        public void Init(ref int code)
         {
             while (true)
             {
@@ -39,7 +39,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static int ReadCommand()
+        private int ReadCommand()
         {
             string name = Program.User?.Login ?? "unauthorized";
             string command = AnsiConsole.Ask<string>($"[green]{name}:[/]");
@@ -93,6 +93,9 @@ namespace DiscretionaryAccessControl.Domain.Services
                 case "exlog":
                     ExceptionLog();
                     return 1;
+                case "ap":
+                    AddPermission();
+                    return 1;
                 case "exit":
                     return Exit();
                 default:
@@ -101,7 +104,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void Title(int textHeight)
+        private void Title(int textHeight)
         {
             AnsiConsole.Write(new FigletText("Discretionary")
                 .Centered()
@@ -139,7 +142,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void TitleUnknownCommand()
+        private void TitleUnknownCommand()
         {
             AnsiConsole.Write(new FigletText("Discretionary")
                 .Centered()
@@ -169,7 +172,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             _unknownCommandException = !_unknownCommandException;
         }
 
-        private static void Help()
+        private void Help()
         {
             AnsiConsole.Clear();
 
@@ -181,6 +184,7 @@ namespace DiscretionaryAccessControl.Domain.Services
                 "[green]list[/]\t\t-   View objects list",
                 "[green]users[/]\t\t-   View users list",
                 "[green]add[/]\t\t-   Add new object",
+                "[green]ap[/]\t\t-   Add user permission for object",
                 "[green]read {name}[/]\t-   Read object data",
                 "[green]edit {name}[/]\t-   Edit object data",
                 "[green]adduser[/]\t\t-   Add new user",
@@ -202,14 +206,14 @@ namespace DiscretionaryAccessControl.Domain.Services
             Console.ReadLine();
         }
 
-        private static int Exit()
+        private int Exit()
         {
             AnsiConsole.Clear();
             AnsiConsole.MarkupLine("[yellow]Exiting...[/]");
             return 0;
         }
 
-        private static void Exception(Exception ex)
+        private void Exception(Exception ex)
         {
             _dataService.WriteExceptionLog(ex);
 
@@ -239,7 +243,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             Console.ReadLine();
         }
 
-        private static void LogIn()
+        private void LogIn()
         {
             AnsiConsole.Clear();
 
@@ -281,7 +285,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void LogOut()
+        private void LogOut()
         {
             try
             {
@@ -293,7 +297,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void ObjectsList()
+        private void ObjectsList()
         {
             try
             {
@@ -343,7 +347,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void AddObject()
+        private void AddObject()
         {
             AnsiConsole.Clear();
 
@@ -355,7 +359,7 @@ namespace DiscretionaryAccessControl.Domain.Services
                 .Centered()
                 .Color(Color.Yellow));
 
-            int height = Console.WindowHeight - 18;
+            int height = Console.WindowHeight - 13;
 
             if (height < 0)
             {
@@ -369,22 +373,11 @@ namespace DiscretionaryAccessControl.Domain.Services
 
             string name = AnsiConsole.Ask<string>("Enter [green]name[/]:");
 
-            string permission = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("Choose [green]permission[/]:")
-                    .PageSize(3)
-                    .MoreChoicesText("[grey](Move up and down for chose permission)[/]")
-                    .AddChoices(new[] {
-                        "Read",
-                        "Write",
-                        "RootOnly",
-                    }));
-
             string data = AnsiConsole.Ask<string>("Enter [green]data[/]:");
 
             try
             {
-                _dataService.AddObject(name, permission, data);
+                _dataService.AddObject(name, data);
             }
             catch (Exception ex)
             {
@@ -392,7 +385,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void Read(string[] lines)
+        private void Read(string[] lines)
         {
             try
             {
@@ -414,7 +407,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void Edit(string[] lines)
+        private void Edit(string[] lines)
         {
             try
             {
@@ -434,7 +427,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void AddUser()
+        private void AddUser()
         {
             AnsiConsole.Clear();
 
@@ -486,7 +479,56 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void UsersList()
+        private void AddPermission()
+        {
+            AnsiConsole.Clear();
+
+            AnsiConsole.Write(new FigletText("Discretionary")
+                .Centered()
+                .Color(Color.Yellow));
+
+            AnsiConsole.Write(new FigletText("Access Control")
+                .Centered()
+                .Color(Color.Yellow));
+
+            int height = Console.WindowHeight - 20;
+
+            if (height < 0)
+            {
+                height = 0;
+            }
+
+            for (int i = 0; i < height; i++)
+            {
+                AnsiConsole.WriteLine();
+            }
+
+            string login = AnsiConsole.Ask<string>("Enter [green]user login[/]:");
+
+            string name = AnsiConsole.Ask<string>("Enter [green]object name[/]:");
+
+            string permission = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("Choose [green]user permission[/] for object:")
+                    .PageSize(3)
+                    .MoreChoicesText("[grey](Move up and down for chose permission)[/]")
+                    .AddChoices(new[] {
+                        "Read",
+                        "Write",
+                        "Read and Write"
+                    }));
+
+            try
+            {
+                _dataService.AddPermission(login, name, permission);
+            }
+            catch (Exception ex)
+            {
+                Exception(ex);
+            }
+        }
+
+        private void UsersList()
         {
             try
             {
@@ -536,7 +578,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void AuthLog()
+        private void AuthLog()
         {
             try
             {
@@ -601,7 +643,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void EventLog()
+        private void EventLog()
         {
             try
             {
@@ -664,7 +706,7 @@ namespace DiscretionaryAccessControl.Domain.Services
             }
         }
 
-        private static void ExceptionLog()
+        private void ExceptionLog()
         {
             try
             {

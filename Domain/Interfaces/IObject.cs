@@ -1,14 +1,13 @@
-﻿using DiscretionaryAccessControl.Domain.Enums;
-
-namespace DiscretionaryAccessControl.Domain.Interfaces
+﻿namespace DiscretionaryAccessControl.Domain.Interfaces
 {
-    public interface IObject : ICloneable
+    public interface IObject
     {
-        public Guid Id { get; }
-        public string Name { get; set; }
-        public ObjectPermission Permission { get; }
-        public abstract static IObject Create(string name, ObjectPermission permission, string? data = null);
-        void Edit(string input);
-        string Read();
+        Guid Id { get; }
+
+        string Name { get; set; }
+
+        string Data { get; set; }
+
+        abstract static IObject Create(string name, string? data = null);
     }
 }

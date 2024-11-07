@@ -1,4 +1,6 @@
-﻿using DiscretionaryAccessControl.Domain.Enums;
+﻿using System.Collections.Concurrent;
+
+using DiscretionaryAccessControl.Domain.Enums;
 using DiscretionaryAccessControl.Domain.Interfaces;
 
 #pragma warning disable CS8618
@@ -94,6 +96,16 @@ namespace DiscretionaryAccessControl.Domain.Objects
             }
         }
 
+        private ConcurrentBag<Guid> _readObject = new();
+
+        private ConcurrentBag<Guid> _writeObject = new();
+
+        public ConcurrentBag<Guid> ReadObject { get => _readObject; }
+
+        public ConcurrentBag<Guid> WriteObject { get => _writeObject; }
+
+        private readonly string _separator = "\t";
+
         private Subject(string login, string password, SubjectType permission)
         {
             _id = Guid.NewGuid();
@@ -104,19 +116,19 @@ namespace DiscretionaryAccessControl.Domain.Objects
 
         public static ISubject Create(string login, string password, SubjectType permission)
         {
-            if (Program.Users.IsEmpty)
+            if (Program.Users.IsEmpty && Program.User == null)
             {
                 return new Subject(login, password, permission);
             }
 
-            if (Program.User == null || Program.User.Permission != SubjectType.Root)
+            if (Program.User == null || !Program.CreatePermissions.Any(permission => permission == Program.User.Permission))
             {
                 throw new ApplicationException($"Denied access");
             }
 
             if (permission == SubjectType.Root)
             {
-                throw new ArgumentException($"Denied access", nameof(permission));
+                throw new ApplicationException($"Denied access");
             }
 
             if (Program.Users.Keys.Any(subject => subject.Login == login))
@@ -125,6 +137,108 @@ namespace DiscretionaryAccessControl.Domain.Objects
             }
 
             return new Subject(login, password, permission);
+        }
+
+        public DataObject AddObject(string name, string data)
+        {
+            if (Program.User == null)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Object name is empty");
+            }
+
+            if (Program.Objects.Any(obj => obj.Name == name))
+            {
+                throw new ArgumentException("An object with this name already exists");
+            }
+
+            if (!Program.CreatePermissions.Any(permission => permission == Program.User.Permission))
+            {
+                throw new ApplicationException($"Denied access");
+            }
+
+            DataObject obj = (DataObject)DataObject.Create(name, data)
+                ?? throw new ApplicationException("Critical error!");
+
+            Program.Objects.Add(obj);
+
+            return obj;
+        }
+
+        public DataObject GetObject(string name)
+        {
+            if (Program.User == null)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            if (Program.User.Permission == SubjectType.None)
+            {
+                throw new ApplicationException($"Denied access");
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Object name is empty");
+            }
+
+            DataObject obj = Program.Objects
+                .Where(obj => obj.Name == name.Trim())
+                .FirstOrDefault() ?? throw new ArgumentException($"The object with name of '{name}' was not found");
+
+            if (Program.User.Permission == SubjectType.Root)
+            {
+                return obj;
+            }
+
+            if (!_readObject.Any(id => id == obj.Id))
+            {
+                throw new ApplicationException($"Denied access");
+            }
+
+            return obj;
+        }
+
+        public DataObject EditObject(string name, string data)
+        {
+            if (Program.User == null)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            if (Program.User.Permission == SubjectType.None)
+            {
+                throw new ApplicationException($"Denied access");
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Object name is empty");
+            }
+
+            DataObject obj = Program.Objects
+                .Where(obj => obj.Name == name.Trim())
+                .FirstOrDefault() ?? throw new ArgumentException($"The object with name of '{name}' was not found");
+
+            if (Program.User.Permission == SubjectType.Root)
+            {
+                obj.Data = data;
+
+                return obj;
+            }
+
+            if (!_writeObject.Any(id => id == obj.Id))
+            {
+                throw new ApplicationException($"Denied access");
+            }
+
+            obj.Data = data;
+
+            return obj;
         }
 
         public static bool operator ==(Subject? left, Subject? right)
@@ -165,7 +279,7 @@ namespace DiscretionaryAccessControl.Domain.Objects
 
         public override string ToString()
         {
-            return $"{Login}\t{Id}\t{Permission}";
+            return $"{Login}{_separator}{Id}{_separator}{Permission}";
         }
     }
 }
